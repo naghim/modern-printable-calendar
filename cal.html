@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <title></title>
+    <style>
+        html, body { 
+            height: 100%; 
+            margin: 0; 
+            padding: 0; 
+        }
+        body { 
+            font-family: 'Arial Black', Gadget, sans-serif; 
+            background: white; 
+            color: black;
+            overflow-x: hidden;
+        }
+        .container {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            border-bottom: 8px solid black; 
+            padding: 10px 10px;
+            margin-bottom: 10px;
+        }
+        h1 { margin: 0; font-size: 35px; }
+        .header-info { text-align: right; font-size: 18px; line-height: 1.2; }
+
+        .grid { 
+            display: grid; 
+            grid-template-columns: repeat(6, 1fr); 
+            grid-template-rows: repeat(2, 1fr);
+            gap: 3px; 
+            flex-grow: 1;
+        }
+        
+        .month { border: 3px solid black; display: flex; flex-direction: column; }
+        .month-name { 
+            font-size: 20px; 
+            background: black; 
+            color: white; 
+            text-align: center; 
+            padding: 5px 0; 
+        }
+        
+        table { width: 100%; height: 100%; border-collapse: collapse; }
+        th { font-size: 12px; padding: 5px 0; border-bottom: 2px solid black; }
+        td { 
+            text-align: center; 
+            vertical-align: middle; 
+            font-size: 18px; 
+            position: relative; 
+            border: 1px solid #ddd;
+        }
+
+        /* The Bold Circle with Labels */
+        .spot-wrapper {
+            position: relative;
+            display: inline-block;
+            width: 45px;
+            height: 45px;
+        }
+        .spot-circle {
+            background: black;
+            color: white;
+            width: 100%;
+            height: 100%;
+            line-height: 45px;
+            border-radius: 50%;
+            display: block;
+            font-weight: 900;
+            font-size: 20px;
+        }
+        .label-overlay {
+            position: absolute;
+            bottom: -5px;
+            right: -5px;
+            background: white;
+            color: black;
+            border: 3px solid black;
+            font-size: 16px;
+            font-weight: 900;
+            padding: 0 4px;
+            line-height: 1;
+            border-radius: 4px;
+            z-index: 10;
+        }
+
+        .legend { 
+            margin-top: 10px; 
+            border: 5px solid black; 
+            padding: 10px; 
+            display: flex;
+            justify-content: space-around;
+            font-size: 20px;
+        }
+        .legend b { background: black; color: white; padding: 0 10px; margin-right: 10px; border-radius: 4px; }
+        
+        @media print {
+            @page { size: landscape; margin: 2mm; }
+            .container { height: 98vh; width: 100vw; }
+            body { -webkit-print-color-adjust: exact; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1></h1>
+        <div class="header-info">
+        </div>
+    </header>
+
+    <div class="grid" id="calendar-container"></div>
+
+    <div class="legend">
+    </div>
+</div>
+
+<script src="example-config.js"></script>
+
+<script>
+document.title = title;
+document.querySelector('h1').textContent = headerH1;
+document.querySelector('.header-info').innerHTML = headerInfo;
+document.querySelector('.legend').innerHTML = legend.map(item => `<div><b>${item.code}</b> ${item.text}</div>`).join('');
+
+const startDate = new Date(parseInt(startDateStr.split('-')[0]), parseInt(startDateStr.split('-')[1]) - 1, parseInt(startDateStr.split('-')[2]));
+const year = startDate.getFullYear();
+const biweeklyDayOfWeek = startDate.getDay();
+const column = biweeklyDayOfWeek === 0 ? 7 : biweeklyDayOfWeek;
+const style = document.createElement('style');
+// Highlight the biweekly column
+style.textContent = `td:nth-child(${column}) { background-color: #f0f0f0; }`;
+document.head.appendChild(style);
+
+const scheduleObj = {};
+schedule.forEach(item => {
+  if (!scheduleObj[item.month]) scheduleObj[item.month] = {};
+  if (item.types.length > 0) {
+    item.types.forEach(type => {
+      if (!scheduleObj[item.month][type]) scheduleObj[item.month][type] = [];
+      scheduleObj[item.month][type].push(item.day);
+    });
+  } else {
+    // Bonus day
+    if (!scheduleObj[item.month]['bonus']) scheduleObj[item.month]['bonus'] = [];
+    scheduleObj[item.month]['bonus'].push(item.day);
+  }
+});
+
+function generateCalendar() {
+    const container = document.getElementById('calendar-container');
+            let daysIndex = -1;
+        let isBiweekly = false;
+    
+    for (let m = 0; m < 12; m++) {
+        const monthDiv = document.createElement('div');
+        monthDiv.className = 'month';
+        let html = `<div class="month-name">${months[m]}</div>`;
+        html += `<table><tr>${daysShort.map(d => `<th>${d}</th>`).join('')}</tr><tr>`;
+        
+        const firstDay = new Date(year, m, 1).getDay();
+        const adj = firstDay === 0 ? 6 : firstDay - 1;
+        const days = new Date(year, m + 1, 0).getDate();
+        
+        for (let i = 0; i < adj; i++) html += '<td></td>';
+
+        for (let d = 1; d <= days; d++) {
+            let content = d;
+            let codes = "";
+            let hasScheduled = false;
+            const s = scheduleObj[m];
+            if (s) {
+                legend.forEach(item => {
+                    if (s[item.code]?.includes(d)) {
+                        codes += item.code;
+                        hasScheduled = true;
+                    }
+                });
+                if (s['bonus']?.includes(d)) {
+                    hasScheduled = true;
+                }
+            }
+
+            isBiweekly = false;
+            if (daysIndex >= 0) {
+                daysIndex++;
+                if (daysIndex % 14 === 0) { // Is today a biweekly day?
+                    isBiweekly = true;}
+            }
+
+            if (d == startDate.getDate() && m == startDate.getMonth()) {
+                daysIndex = 0; // Reset index on start date
+                isBiweekly = true; // Also mark start date
+            }
+
+            if (hasScheduled || isBiweekly) {
+                content = `
+                    <div class="spot-wrapper">
+                        <span class="spot-circle">${d}</span>
+                        ${codes ? `<span class="label-overlay">${codes}</span>` : ''}
+                    </div>`;
+            }
+            html += `<td>${content}</td>`;
+            if ((d + adj) % 7 === 0) html += '</tr><tr>';
+        }
+        html += '</tr></table>';
+        monthDiv.innerHTML = html;
+        container.appendChild(monthDiv);
+    }
+}
+generateCalendar();
+</script>
+</body>
+</html>
